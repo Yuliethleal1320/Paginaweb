@@ -51,12 +51,14 @@ table{width:100%;border-collapse:collapse;font-size:.92rem}td,th{padding:7px 6px
 <body>
 <div id="app"></div>
 <script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
 <script>
 const AV=['🦊','🐼','🐸','🦁','🐙','🦄','🐯','🐵','🐧','🐢','🦉','🐬','🐰','🐨','🦖','🐝'];
 const $=document.getElementById('app');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const LS={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
-const S={role:null,code:'',pid:null,me:null,st:null,q:null,fb:null,msg:'',view:'home',ed:null,hid:null,name:'',av:AV[0],conn:null,ready:false};
+const S={role:null,code:'',pid:null,me:null,st:null,q:null,fb:null,msg:'',view:'home',imp:'',ed:null,hid:null,name:'',av:AV[0],conn:null,ready:false};
 let timer=null,peer=null,G=null;
 const link=c=>location.href.split('#')[0]+'#'+c;
 const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
@@ -72,7 +74,7 @@ const quizzes=()=>LS.get('qz_quizzes',[]),hist=()=>LS.get('qz_hist',[]);
 function saveHist(){
   if(!G||!G.players.size)return;
   const h=hist(),e={id:G.id,date:G.date,title:G.title,status:G.status,
-    questions:G.questions.map(q=>({q:q.q,type:q.type})),
+    questions:G.questions.map(q=>({q:q.q,type:q.type,correct:q.type==='open'?(q.a||[]).join(' / '):q.o[q.c]})),
     players:[...G.players.values()].map(p=>({name:p.name,avatar:p.avatar,score:p.score,answers:p.answers}))};
   const i=h.findIndex(x=>x.id===G.id);if(i>=0)h[i]=e;else h.unshift(e);LS.set('qz_hist',h.slice(0,60));
 }
@@ -180,6 +182,153 @@ function podium(list){
 const logo=sub=>`<div class="logo">Quizarp${sub?`<small>${sub}</small>`:''}</div>`;
 const newQ=type=>type==='tf'?{type,q:'',o:['Verdadero','Falso'],c:0}:type==='open'?{type,q:'',a:''}:{type:'mc',q:'',o:['','','',''],c:0};
 
+// ===== Importar preguntas (Excel / Word) =====
+function buildQ(lab,tipo,q,opts,corr,warns){
+  q=String(q||'').trim();if(!q)return null;
+  opts=opts.map(x=>String(x||'').trim()).filter(Boolean);
+  const t=norm(tipo),c=String(corr||'').trim(),nc=norm(c);
+  let type=/abier/.test(t)?'open':/verdadero|falso|^vf$|^tf$/.test(t)?'tf':/multiple|opcion|seleccion/.test(t)?'mc':'';
+  if(!type)type=opts.length>=2?(opts.length===2&&opts.every(o=>/^(verdadero|falso)$/.test(norm(o)))?'tf':'mc'):/^(verdadero|falso|v|f)$/.test(nc)?'tf':'open';
+  if(type==='tf'){
+    if(!/^(v|f|verdadero|falso|true|false)$/.test(nc))warns.push(lab+': no se entendió si es Verdadero o Falso (quedó Verdadero).');
+    return{type,q,o:['Verdadero','Falso'],c:/^(f|falso|false)$/.test(nc)?1:0};
+  }
+  if(type==='open')return{type,q,a:c.split(/[;|]/).map(s=>s.trim()).filter(Boolean).join(', ')};
+  let ci=-1;
+  if(/^[a-d]$/.test(nc))ci='abcd'.indexOf(nc);else if(/^[1-4]$/.test(nc))ci=+nc-1;else if(nc)ci=opts.findIndex(o=>norm(o)===nc);
+  if(opts.length<4){warns.push(lab+': tenía menos de 4 opciones, se completó.');const pad=['Ninguna de las anteriores','Todas las anteriores'];let k=0;while(opts.length<4)opts.push(pad[k++]||'—')}
+  if(opts.length>4){warns.push(lab+': tenía más de 4 opciones, se usaron las 4 primeras.');opts=opts.slice(0,4)}
+  if(ci<0||ci>3){warns.push(lab+': no se encontró la respuesta correcta (quedó la opción A).');ci=0}
+  return{type:'mc',q,o:opts,c:ci};
+}
+function parseRows(rows){
+  const qs=[],warns=[];
+  rows=rows.map(r=>r.map(c=>String(c??'').trim()));
+  const hi=rows.findIndex(r=>r.some(c=>/pregunta/.test(norm(c))));
+  let ix={t:-1,q:0,o:[1,2,3,4],c:5};
+  if(hi>=0){
+    ix={t:-1,q:-1,o:[-1,-1,-1,-1],c:-1};
+    rows[hi].forEach((h,i)=>{const n=norm(h);
+      if(/^tipo/.test(n))ix.t=i;
+      else if(/pregunta/.test(n))ix.q=i;
+      else if(/correcta|^respuesta$|^rta$|^clave$/.test(n))ix.c=i;
+      else{const m=n.match(/^(?:opcion |opc )?([a-d1-4])$/);if(m)ix.o['abcd1234'.indexOf(m[1])%4]=i}});
+  }
+  const start=hi>=0?hi+1:0;
+  rows.slice(start).forEach((r,k)=>{
+    if(!r.some(Boolean))return;
+    const g=i=>i>=0?r[i]||'':'';
+    const x=buildQ('Fila '+(start+k+1),g(ix.t),g(ix.q),ix.o.map(g),g(ix.c),warns);
+    if(x)qs.push(x);
+  });
+  return{qs,warns};
+}
+function parseText(lines){
+  const qs=[],warns=[];let cur=null;
+  const push=()=>{if(cur){const r=buildQ('Pregunta '+(qs.length+1),'',cur.q,cur.o,cur.c,warns);if(r)qs.push(r)}cur=null};
+  for(const raw of lines){
+    let l=String(raw).trim();if(!l)continue;let m;
+    if(m=l.match(/^(?:respuesta correcta|respuesta|resp|rta|correcta|clave)\s*[:\-]\s*(.+)$/i)){if(cur)cur.c=m[1];continue}
+    if(m=l.match(/^(\*?)\s*\(?([A-Da-d])[\).:\-]\s+(.+)$/)){if(cur){cur.o.push(m[3].trim());if(m[1])cur.c=m[2]}continue}
+    l=l.replace(/^\s*(?:\d+|[Pp]regunta\s*\d*)\s*[\).:\-]\s*/,'');
+    push();cur={q:l,o:[],c:''};
+    const im=l.match(/^(.*?)\s+(?:respuesta correcta|respuesta|rta)\s*[:\-]\s*(.+)$/i);if(im){cur.q=im[1];cur.c=im[2]}
+  }
+  push();return{qs,warns};
+}
+async function importFile(f){
+  if(!f)return;
+  const ext=f.name.split('.').pop().toLowerCase();let res;
+  try{
+    if(['xlsx','xls','csv'].includes(ext)){
+      if(typeof XLSX==='undefined')throw 0;
+      const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+      res=parseRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''}));
+    }else if(ext==='docx'){
+      if(typeof mammoth==='undefined')throw 0;
+      const html=(await mammoth.convertToHtml({arrayBuffer:await f.arrayBuffer()})).value;
+      const doc=new DOMParser().parseFromString(html,'text/html'),tr=[...doc.querySelectorAll('tr')];
+      res=tr.length?parseRows(tr.map(r=>[...r.children].map(c=>c.textContent))):parseText([...doc.body.querySelectorAll('p,li')].map(p=>p.textContent));
+    }else if(ext==='txt'){res=parseText((await f.text()).split(/\r?\n/))}
+    else{S.imp='<p style="color:var(--no)">Usa un archivo .xlsx, .csv, .docx o .txt</p>';return render()}
+  }catch(err){S.imp='<p style="color:var(--no)">No pude leer ese archivo. Revisa tu internet o prueba con la plantilla de Excel.</p>';return render()}
+  if(!res.qs.length){S.imp='<p style="color:var(--no)">No encontré preguntas en el archivo. Mira el formato de ejemplo o descarga la plantilla.</p>';return render()}
+  const ed=S.ed;if(ed.qs.every(x=>!x.q.trim()))ed.qs=[];
+  ed.qs.push(...res.qs);if(!ed.title.trim())ed.title=f.name.replace(/\.[^.]+$/,'');
+  S.imp='<p style="color:var(--ok)">✅ Se importaron '+res.qs.length+' preguntas. Revísalas abajo.</p>'+(res.warns.length?'<small style="color:var(--no)">⚠ '+res.warns.slice(0,6).map(esc).join('<br>⚠ ')+(res.warns.length>6?'<br>…':'')+'</small>':'');
+  render();
+}
+function template(){
+  if(typeof XLSX==='undefined')return alert('No se pudo cargar el lector de Excel. Revisa tu internet.');
+  const rows=[['Tipo','Pregunta','Opción A','Opción B','Opción C','Opción D','Respuesta correcta'],
+    ['Opción múltiple','¿Cuál es la capital de Francia?','Madrid','París','Roma','Berlín','B'],
+    ['Verdadero/Falso','El Sol es una estrella.','','','','','Verdadero'],
+    ['Abierta','¿En qué continente está Colombia?','','','','','América, Sudamérica, América del Sur']];
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:18},{wch:42},{wch:16},{wch:16},{wch:16},{wch:16},{wch:36}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Preguntas');XLSX.writeFile(wb,'plantilla-quizarp.xlsx');
+}
+
+// ===== Excel de resultados =====
+function excel(e){
+  if(typeof XLSX==='undefined')return csv(e);
+  const ps=[...e.players].sort((a,b)=>b.score-a.score);
+  const B={style:'thin',color:{rgb:'FFBFBFBF'}},bd={top:B,bottom:B,left:B,right:B};
+  const fill=c=>({patternType:'solid',fgColor:{rgb:'FF'+c}});
+  const C=(v,s)=>({v,t:typeof v==='number'?'n':'s',s:{border:bd,alignment:{vertical:'center',wrapText:true},font:{sz:10},...s}});
+  const H={fill:fill('5B2C9F'),font:{bold:true,color:{rgb:'FFFFFFFF'},sz:10},alignment:{horizontal:'center',vertical:'center',wrapText:true}};
+  const ctr={alignment:{horizontal:'center',vertical:'center',wrapText:true}};
+  const MARK={true:['4CAF50','✓'],false:['E53935','✗'],null:['FFC107','•']};
+  const pct=(c,n)=>n?Math.round(100*c/n):null,fp=v=>v===null?'-':v+'%';
+  // preguntas que alguien contestó (todas si nadie contestó)
+  let qi=e.questions.map((_,i)=>i).filter(i=>ps.some(p=>p.answers.some(a=>a.qi===i)));
+  if(!qi.length)qi=e.questions.map((_,i)=>i);
+  const tot=ps.reduce((t,p)=>{p.answers.forEach(a=>{if(a.ok!==null){t.n++;if(a.ok)t.c++}});return t},{c:0,n:0});
+  const NC=6+qi.length*2,rows=[],merges=[];
+  // fila 0: título
+  rows.push([C(e.title+'   ·   Promedio de aciertos: '+fp(pct(tot.c,tot.n))+'   ·   '+new Date(e.date).toLocaleDateString(),{...H,fill:fill('3F1D74'),font:{bold:true,color:{rgb:'FFFFFFFF'},sz:13},alignment:{horizontal:'left',vertical:'center'}}),...Array(NC-1).fill(C('',{fill:fill('3F1D74')}))]);
+  merges.push({s:{r:0,c:0},e:{r:0,c:NC-1}});
+  // fila 1: encabezados
+  const hd=['N°','Estudiante','Puntaje','✓ Correctas','✗ Incorrectas','% aciertos'].map(t=>C(t,H));
+  qi.forEach((i,k)=>{hd.push(C((k+1)+'. '+e.questions[i].q,H),C('',H));merges.push({s:{r:1,c:6+k*2},e:{r:1,c:7+k*2}})});
+  rows.push(hd);
+  // fila 2: respuesta correcta
+  const key=[C('Respuesta correcta',{font:{bold:true,sz:10,italic:true},fill:fill('E8F5E9')}),...Array(5).fill(C('',{fill:fill('E8F5E9')}))];
+  merges.push({s:{r:2,c:0},e:{r:2,c:5}});
+  qi.forEach((i,k)=>{key.push(C(e.questions[i].correct||'(abierta, sin respuesta fija)',{fill:fill('E8F5E9'),font:{sz:9,italic:true}}),C('',{fill:fill('E8F5E9')}));merges.push({s:{r:2,c:6+k*2},e:{r:2,c:7+k*2}})});
+  rows.push(key);
+  // estudiantes
+  ps.forEach((p,n)=>{
+    const c=p.answers.filter(a=>a.ok===true).length,w=p.answers.filter(a=>a.ok===false).length;
+    const r=[C(n+1,ctr),C(p.name,{font:{bold:true,sz:10}}),C(p.score,ctr),C(c,ctr),C(w,ctr),C(fp(pct(c,c+w)),ctr)];
+    qi.forEach(i=>{const a=p.answers.find(x=>x.qi===i);
+      if(!a)r.push(C('',{fill:fill('F2F2F2')}),C('',{fill:fill('F2F2F2')}));
+      else{const m=MARK[a.ok];r.push(C(a.resp,{font:{sz:9}}),C(m[1],{fill:fill(m[0]),font:{bold:true,color:{rgb:'FFFFFFFF'},sz:11},...ctr}))}});
+    rows.push(r);
+  });
+  // pie: % de aciertos por pregunta
+  const ft=[C('% de aciertos por pregunta',{font:{bold:true,sz:10},fill:fill('EDE7F6')}),...Array(5).fill(C('',{fill:fill('EDE7F6')}))];
+  merges.push({s:{r:rows.length,c:0},e:{r:rows.length,c:5}});
+  qi.forEach((i,k)=>{const as=ps.flatMap(p=>p.answers.filter(a=>a.qi===i&&a.ok!==null));
+    ft.push(C('',{fill:fill('EDE7F6')}),C(fp(pct(as.filter(a=>a.ok).length,as.length)),{fill:fill('EDE7F6'),font:{bold:true,sz:9},...ctr}))});
+  rows.push(ft);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!merges']=merges;
+  ws['!cols']=[{wch:5},{wch:26},{wch:9},{wch:11},{wch:12},{wch:10},...qi.flatMap(()=>[{wch:30},{wch:5}])];
+  ws['!rows']=[{hpt:26},{hpt:78},{hpt:34}];
+  // hojas de apoyo
+  const st=a=>a.ok===null?'Sin calificar':a.ok?'Correcta':'Incorrecta';
+  const det=[['Estudiante','N°','Pregunta','Tipo','Respuesta del estudiante','Respuesta correcta','Resultado','Puntos'].map(t=>C(t,H))];
+  ps.forEach(p=>p.answers.forEach((a,i)=>{const q=e.questions[a.qi];det.push([p.name,i+1,q.q,TYPES[q.type],a.resp,q.correct||'',st(a),a.pts].map(v=>C(v,{})))}));
+  const pq=[['Pregunta','Tipo','Respuesta correcta','Veces contestada','Aciertos','% de aciertos'].map(t=>C(t,H))];
+  e.questions.forEach((q,k)=>{const as=ps.flatMap(p=>p.answers.filter(a=>a.qi===k));if(!as.length)return;
+    const g=as.filter(a=>a.ok!==null),c=g.filter(a=>a.ok).length;
+    pq.push([q.q,TYPES[q.type],q.correct||'',as.length,c,fp(pct(c,g.length))].map(v=>C(v,{})))});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Resultados');
+  [['Detalle',det,[24,5,44,18,30,28,14,8]],['Por pregunta',pq,[48,18,28,16,10,14]]].forEach(([n,r,w])=>{
+    const s=XLSX.utils.aoa_to_sheet(r);s['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,s,n)});
+  XLSX.writeFile(wb,'Quizarp - '+e.title.replace(/[\\\/:*?"<>|]+/g,'')+'.xlsx');
+}
+
 function cleanQs(ed){
   const out=[];
   for(const x of ed.qs){
@@ -212,12 +361,17 @@ function render(){
       <div class="row"><span class="fit mut">Tiempo por pregunta</span><select id="lim">${[10,20,30,60,120].map(v=>`<option value="${v}" ${+ed.limit===v?'selected':''}>${v} s</option>`).join('')}</select></div>
       <div class="row"><span class="fit mut">Preguntas por estudiante</span><select id="per">${Array.from({length:ed.qs.length},(_,i)=>`<option value="${i}" ${Math.min(+ed.per||0,ed.qs.length-1)===i?'selected':''}>${i?`${i} de ${ed.qs.length}, al azar`:`Todas (${ed.qs.length})`}</option>`).join('')}</select></div>
       <p class="mut"><small>Escribe más preguntas de las que cada estudiante contestará: cada uno recibe un grupo distinto, en distinto orden.</small></p>
+      <div class="q" style="border-color:var(--pri)"><b>📂 Importar preguntas desde Word o Excel</b>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv,.docx,.txt">
+      <div class="row"><button class="sec sm fit" id="tpl">⬇ Plantilla de Excel</button></div>
+      <small class="mut">Excel: columnas Tipo, Pregunta, Opción A, B, C, D y Respuesta correcta (A, B, C o D). Word: cada pregunta en una línea, sus opciones con A) B) C) D) y una línea “Respuesta: B”.</small>${S.imp||''}</div>
       ${ed.qs.map(editorQ).join('')}
       <div class="row"><button class="sec" id="addq">+ Agregar pregunta</button></div>${m}
       <div class="row" style="margin-top:12px"><button class="sec" id="back">Cancelar</button><button class="sec" id="sv">💾 Guardar</button><button id="pl">▶ Guardar y jugar</button></div></div>`;
       $.querySelector('#t').oninput=e=>ed.title=e.target.value;
       $.querySelector('#lim').onchange=e=>ed.limit=+e.target.value;
       $.querySelector('#per').onchange=e=>ed.per=+e.target.value;
+      $.querySelector('#file').onchange=e=>importFile(e.target.files[0]);$.querySelector('#tpl').onclick=template;
       $.querySelectorAll('[data-q]').forEach(e=>e.oninput=()=>ed.qs[+e.dataset.q].q=e.value);
       $.querySelectorAll('[data-a]').forEach(e=>e.oninput=()=>ed.qs[+e.dataset.a].a=e.value);
       $.querySelectorAll('[data-o]').forEach(e=>e.oninput=()=>{const[a,b]=e.dataset.o.split(':');ed.qs[a].o[b]=e.value});
@@ -231,21 +385,21 @@ function render(){
     if(S.view==='hist'){
       const e=hist().find(x=>x.id===S.hid);if(!e){S.view='dash';return render()}
       $.innerHTML=`${logo()}<div class="card"><h2>${esc(e.title)}</h2><p class="mut">${new Date(e.date).toLocaleString()} · ${e.players.length} estudiantes</p>
-      <div class="row"><button class="sec" id="back">← Volver</button><button id="csv">⬇ Descargar CSV (Excel)</button></div></div>
+      <div class="row"><button class="sec" id="back">← Volver</button><button id="csv">⬇ Descargar Excel</button></div></div>
       ${podium(e.players.slice().sort((a,b)=>b.score-a.score))}
       ${[...e.players].sort((a,b)=>b.score-a.score).map(p=>`<div class="card"><div class="row" style="flex-wrap:nowrap"><span style="font-size:2rem" class="fit">${esc(p.avatar)}</span><b>${esc(p.name)}</b><b class="fit">${p.score} pts</b></div>
       <div class="scroll"><table><tr><th>Pregunta</th><th>Respuesta</th><th></th></tr>${p.answers.map(a=>`<tr><td>${esc(e.questions[a.qi].q)}</td><td>${esc(a.resp)}</td><td>${a.ok===null?'📝':a.ok?'✅':'❌'}</td></tr>`).join('')}</table></div></div>`).join('')}`;
-      $.querySelector('#back').onclick=()=>{S.view='dash';render()};$.querySelector('#csv').onclick=()=>csv(e);return;
+      $.querySelector('#back').onclick=()=>{S.view='dash';render()};$.querySelector('#csv').onclick=()=>excel(e);return;
     }
     if(S.view==='dash'){
       const qz=quizzes(),h=hist();
       $.innerHTML=`${logo('Panel del profesor')}${m}<div class="card"><div class="row"><h2>Mis quizzes</h2><button class="fit" id="nw">+ Nuevo quiz</button></div>
       ${qz.map(x=>`<div class="lb"><span class="n"><b>${esc(x.title)}</b><br><small class="mut">${x.qs.length} preguntas${x.per&&x.per<x.qs.length?` (${x.per} por estudiante)`:''} · ${x.limit}s</small></span><button class="sm" data-play="${x.id}">▶ Jugar</button><button class="sec sm" data-edit="${x.id}">Editar</button><button class="red sm" data-rm="${x.id}">✕</button></div>`).join('')||'<p class="mut">Aún no tienes quizzes guardados.</p>'}</div>
       <div class="card"><h2>Historial de partidas</h2>${h.map(x=>`<div class="lb"><span class="n"><b>${esc(x.title)}</b><br><small class="mut">${new Date(x.date).toLocaleString()} · ${x.players.length} estudiantes</small></span><button class="sm" data-h="${x.id}">Ver</button><button class="red sm" data-hrm="${x.id}">✕</button></div>`).join('')||'<p class="mut">Cuando juegues una partida, sus resultados se guardan aquí.</p>'}
-      <p class="mut"><small>Se guarda en este navegador y este equipo. Usa “Descargar CSV” para tener una copia.</small></p></div>
+      <p class="mut"><small>Se guarda en este navegador y este equipo. Descarga el Excel de cada partida para tener una copia.</small></p></div>
       <p class="c"><button class="sec" id="home">← Inicio</button></p>`;
-      $.querySelector('#nw').onclick=()=>{S.ed={id:null,title:'',limit:30,per:0,qs:[newQ('mc')]};S.msg='';S.view='edit';render()};
-      $.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const x=quizzes().find(y=>y.id===b.dataset.edit);S.ed={id:x.id,title:x.title,limit:x.limit,per:x.per||0,qs:x.qs.map(q=>({...q,o:q.o?[...q.o]:undefined,a:q.a?q.a.join(', '):''}))};S.msg='';S.view='edit';render()});
+      $.querySelector('#nw').onclick=()=>{S.ed={id:null,title:'',limit:30,per:0,qs:[newQ('mc')]};S.msg='';S.imp='';S.view='edit';render()};
+      $.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const x=quizzes().find(y=>y.id===b.dataset.edit);S.ed={id:x.id,title:x.title,limit:x.limit,per:x.per||0,qs:x.qs.map(q=>({...q,o:q.o?[...q.o]:undefined,a:q.a?q.a.join(', '):''}))};S.msg='';S.imp='';S.view='edit';render()});
       $.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>createGame(quizzes().find(y=>y.id===b.dataset.play)));
       $.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{if(confirm('¿Eliminar este quiz?')){LS.set('qz_quizzes',quizzes().filter(y=>y.id!==b.dataset.rm));render()}});
       $.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{S.hid=b.dataset.h;S.view='hist';render()});
@@ -265,13 +419,14 @@ function render(){
     <p class="mut">o el código</p><div class="code">${S.code}</div>${warn}
     <button class="sec" id="cp">Copiar enlace</button><p class="mut"><small>No cierres ni recargues esta pestaña durante la clase.</small></p></div>
     <div class="card"><div class="row"><b>Estado: ${{lobby:'Sala de espera',playing:'En juego',ended:'Terminado'}[st.status]}</b>
-    ${st.status==='lobby'?'<button id="st">▶ Iniciar</button>':st.status==='playing'?'<button id="en">■ Terminar</button>':''}</div></div>
-    ${st.status==='ended'?`<div class="card">${podium(st.players)}<p class="c mut">✅ Resultados guardados en tu historial</p></div>`:''}
+    ${st.status==='lobby'?'<button id="st">▶ Iniciar</button>':st.status==='playing'?'<button id="en">■ Terminar</button>':''}</div>${st.status==='playing'&&st.players.length&&st.players.every(p=>p.done>=p.of)?'<p class="c" style="color:var(--ok)">✅ Todos terminaron. Pulsa Terminar para ver el podio y bajar el Excel.</p>':''}</div>
+    ${st.status==='ended'?`<div class="card">${podium(st.players)}${st.players.length?'<p class="c mut">✅ Resultados guardados. Se descargó tu Excel.</p><button id="xl" style="width:100%">⬇ Descargar Excel otra vez</button>':'<p class="c mut">Nadie participó en esta partida.</p>'}</div>`:''}
     <div class="card"><h2>${st.status==='lobby'?`Estudiantes (${st.players.length})`:'Ranking'}</h2>${st.status==='lobby'?players():board()}</div>
     <p class="c"><button class="sec" id="new">Ir a mi panel</button></p>`;
     $.querySelector('#cp').onclick=e=>{navigator.clipboard?.writeText(link(S.code));e.target.textContent='¡Copiado!'};
     const a=$.querySelector('#st');if(a)a.onclick=()=>setStatus('playing');
-    const b=$.querySelector('#en');if(b)b.onclick=()=>{if(confirm('¿Terminar la partida para todos?'))setStatus('ended')};
+    const b=$.querySelector('#en');if(b)b.onclick=()=>{if(confirm('¿Terminar la partida para todos?')){setStatus('ended');const e=hist().find(x=>x.id===G.id);if(e)excel(e)}};
+    const xl=$.querySelector('#xl');if(xl)xl.onclick=()=>{const e=hist().find(x=>x.id===G.id);if(e)excel(e)};
     $.querySelector('#new').onclick=()=>{if(st.status==='ended'||confirm('Se cerrará la partida actual. ¿Continuar?')){history.replaceState(null,'',location.pathname);S.view='dash';location.reload()}};return;
   }
   if(!S.me){
