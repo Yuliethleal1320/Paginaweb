@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Quizarp</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--tx:#0f2a3d;--mut:#5b7186;--pri:#0ea5a4;--pri2:#3b82f6;--card:#fff;--bg:#eef6f8;--bd:#d8e8ee;--ok:#16a34a;--no:#e11d48;--c0:#f43f5e;--c1:#3b82f6;--c2:#f59e0b;--c3:#10b981}
+*{box-sizing:border-box}
+body{margin:0;min-height:100vh;color:var(--tx);font-family:Fredoka,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+background:radial-gradient(900px 500px at 10% -10%,#c9f1ee 0,transparent 60%),radial-gradient(900px 500px at 110% 0,#d4e4ff 0,transparent 55%),var(--bg);background-attachment:fixed}
+#app{max-width:780px;margin:0 auto;padding:20px 16px 50px}
+.logo{font-size:3.2rem;font-weight:700;text-align:center;margin:.1em 0;letter-spacing:-1px;background:linear-gradient(90deg,var(--pri),var(--pri2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.logo small{display:block;font-size:1rem;font-weight:400;color:var(--mut);-webkit-text-fill-color:var(--mut);letter-spacing:0}
+h2{margin:.2em 0 .4em}h3{margin:.2em 0}
+.card{background:var(--card);border-radius:22px;padding:20px;margin:16px 0;box-shadow:0 8px 28px rgba(15,60,90,.10)}
+.mut{color:var(--mut)}.c{text-align:center}
+input,select{width:100%;padding:12px 14px;border-radius:14px;border:2px solid var(--bd);background:#f6fbfc;color:var(--tx);font:inherit;margin:5px 0;outline:0}
+input:focus,select:focus{border-color:var(--pri)}
+button{font:inherit;font-weight:600;cursor:pointer;border:0;border-radius:14px;padding:12px 20px;color:#fff;background:linear-gradient(135deg,var(--pri),var(--pri2));box-shadow:0 4px 0 rgba(10,80,100,.25);transition:transform .08s}
+button:active{transform:translateY(2px);box-shadow:none}
+button.sec{background:#fff;color:var(--pri);border:2px solid var(--bd);box-shadow:none}
+button.sm{padding:6px 12px;font-size:.85rem}button.red{background:#fff;color:var(--no);border:2px solid #fecdd6;box-shadow:none}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>*{flex:1}.row>.fit{flex:0 0 auto}
+.avs{display:grid;grid-template-columns:repeat(8,1fr);gap:6px}
+.avs button{background:#f6fbfc;font-size:1.7rem;padding:6px;border:3px solid transparent;box-shadow:none}
+.avs button.on{border-color:var(--pri);background:#dff3f4}
+.opts{display:grid;grid-template-columns:1fr 1fr;gap:12px}.opts.two{grid-template-columns:1fr 1fr}
+.opt{min-height:96px;font-size:1.15rem;display:flex;align-items:center;justify-content:center;gap:10px}
+.o0{background:var(--c0)}.o1{background:var(--c1)}.o2{background:var(--c2)}.o3{background:var(--c3)}
+.opt.dim{opacity:.3}.opt.right{outline:5px solid var(--tx);outline-offset:2px}
+.bar{height:12px;background:var(--bd);border-radius:8px;overflow:hidden;margin-top:12px}.bar i{display:block;height:100%;background:linear-gradient(90deg,var(--pri),var(--pri2));width:100%}
+.big{font-size:1.4rem;font-weight:700}
+.pl{display:inline-flex;align-items:center;gap:6px;background:#e8f5f7;border-radius:30px;padding:6px 14px;margin:3px;font-weight:600}
+.lb{display:flex;align-items:center;gap:12px;padding:10px 6px;border-bottom:1px solid var(--bd)}.lb .n{flex:1}
+.q{border:2px dashed var(--bd);border-radius:18px;padding:14px;margin:12px 0}
+.fb{font-size:1.4rem;font-weight:700;text-align:center;margin:14px 0}
+.url{word-break:break-all;background:#e8f5f7;padding:12px;border-radius:14px;font-family:ui-monospace,monospace;font-size:.9rem}
+.code{font-size:3.4rem;font-weight:700;letter-spacing:.2em;background:linear-gradient(90deg,var(--pri),var(--pri2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.podium{display:flex;align-items:flex-end;justify-content:center;gap:10px;margin:10px 0 0}
+.podium>div{flex:1;max-width:150px;text-align:center}
+.podium .blk{border-radius:14px 14px 0 0;color:#fff;font-weight:700;font-size:1.6rem;padding-top:8px;background:linear-gradient(180deg,var(--pri),var(--pri2))}
+.tag{font-size:.75rem;padding:2px 9px;border-radius:20px;background:#dff3f4;color:var(--pri);font-weight:600}
+table{width:100%;border-collapse:collapse;font-size:.92rem}td,th{padding:7px 6px;border-bottom:1px solid var(--bd);text-align:left;vertical-align:top}
+.scroll{overflow-x:auto}
+@media(max-width:520px){.opts{grid-template-columns:1fr}.opts.two{grid-template-columns:1fr 1fr}.avs{grid-template-columns:repeat(4,1fr)}.logo{font-size:2.6rem}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js"></script>
+<script>
+const AV=['🦊','🐼','🐸','🦁','🐙','🦄','🐯','🐵','🐧','🐢','🦉','🐬','🐰','🐨','🦖','🐝'];
+const $=document.getElementById('app');
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const LS={get(k,d){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}},set(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch{}}};
+const S={role:null,code:'',pid:null,me:null,st:null,q:null,fb:null,msg:'',view:'home',imp:'',pending:null,open:-1,ed:null,hid:null,name:'',av:AV[0],conn:null,ready:false};
+let timer=null,peer=null,G=null;
+const link=c=>location.href.split('#')[0]+'#'+c;
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const norm=s=>String(s||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim();
+function rng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296}}
+function shuffled(n,seed){const r=rng(seed),a=[...Array(n).keys()];for(let i=n-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+const mkCode=()=>Array.from({length:4},()=>'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random()*24)]).join('');
+const openPeer=id=>new Promise((res,rej)=>{const p=id?new Peer(id):new Peer();p.on('open',()=>res(p));p.on('error',rej)});
+const TYPES={mc:'Opción múltiple',tf:'Verdadero / Falso',open:'Respuesta abierta'};
+
+// ===== Guardado (en este navegador) =====
+const quizzes=()=>LS.get('qz_quizzes',[]),hist=()=>LS.get('qz_hist',[]);
+function saveHist(){
+  if(!G||!G.players.size)return;
+  const h=hist(),e={id:G.id,date:G.date,title:G.title,status:G.status,
+    questions:G.questions.map(q=>({q:q.q,type:q.type,correct:q.type==='open'?(q.a||[]).join(' / '):q.o[q.c]})),
+    players:[...G.players.values()].map(p=>({name:p.name,avatar:p.avatar,score:p.score,answers:p.answers}))};
+  const i=h.findIndex(x=>x.id===G.id);if(i>=0)h[i]=e;else h.unshift(e);LS.set('qz_hist',h.slice(0,60));
+}
+function csv(e){
+  const rows=[['Estudiante','Pregunta','Tipo','Respuesta','Resultado','Puntos']];
+  e.players.forEach(p=>p.answers.forEach(a=>{const q=e.questions[a.qi];
+    rows.push([p.name,q.q,TYPES[q.type],a.resp,a.ok===null?'Sin calificar':a.ok?'Correcta':'Incorrecta',a.pts])}));
+  const txt=rows.map(r=>r.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(',')).join('\r\n');
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['\ufeff'+txt],{type:'text/csv;charset=utf-8'}));
+  a.download='quizarp-'+e.title.replace(/[^\w]+/g,'_')+'.csv';a.click();
+}
+
+// ===== PROFESOR: este navegador es el servidor =====
+const roster=()=>[...G.players.values()].map(p=>({name:p.name,avatar:p.avatar,score:p.score,done:p.answers.length,of:p.order.length})).sort((a,b)=>b.score-a.score);
+function broadcast(){
+  const base={title:G.title,status:G.status,total:G.questions.length,players:roster()};
+  S.st=base;if(S.role==='host')render();saveHist();
+  G.players.forEach(p=>{if(p.conn&&p.conn.open)p.conn.send({t:'status',...base})});
+}
+function qPayload(p){
+  const q=G.questions[p.cur.qi],base={t:'q',k:p.answers.length,total:p.order.length,q:q.q,type:q.type,limit:G.limit};
+  return q.type==='open'?base:{...base,options:p.cur.oo.map(i=>q.o[i])};
+}
+function nextQuestion(p){
+  if(p.answers.length>=p.order.length)return{t:'q',done:true};
+  const qi=p.order[p.answers.length],q=G.questions[qi];
+  const oo=q.type==='tf'?[0,1]:q.type==='mc'?shuffled(4,p.seed+qi+1):[];
+  p.cur={qi,oo,t:Date.now()};return qPayload(p);
+}
+function hostHandle(conn,m){
+  let p=conn.pid&&G.players.get(conn.pid);
+  if(m.t==='join'){
+    p=m.pid&&G.players.get(m.pid);
+    if(!p){
+      const name=String(m.name||'').trim().slice(0,20);
+      if(!name)return conn.send({t:'err',msg:'Escribe tu nombre.'});
+      if(G.status==='ended')return conn.send({t:'err',msg:'Esta partida ya terminó.'});
+      m.pid=uid();const seed=Math.floor(Math.random()*2**31);p={name,avatar:String(m.avatar||'🦊').slice(0,8),seed,score:0,answers:[],cur:null,order:shuffled(G.questions.length,seed).slice(0,G.per)};
+      G.players.set(m.pid,p);
+    }
+    p.conn=conn;conn.pid=m.pid;
+    conn.send({t:'joined',pid:m.pid,me:{name:p.name,avatar:p.avatar},title:G.title,status:G.status});
+    return broadcast();
+  }
+  if(!p)return;
+  if(m.t==='q'){
+    if(G.status!=='playing')return conn.send({t:'q',wait:true});
+    return conn.send(p.cur?{...qPayload(p)}:nextQuestion(p));
+  }
+  if(m.t==='a'&&p.cur&&G.status==='playing'){
+    const q=G.questions[p.cur.qi],t=(Date.now()-p.cur.t)/1000,inTime=t<=G.limit+3;
+    let ok=false,right=-1,correct='',resp='';
+    if(q.type==='open'){
+      resp=String(m.text||'').slice(0,200).trim();const acc=q.a||[];
+      if(!acc.length)ok=null;else{ok=inTime&&!!norm(resp)&&acc.some(a=>norm(a)===norm(resp));correct=acc[0]}
+    }else{
+      ok=m.pick>=0&&inTime&&p.cur.oo[m.pick]===q.c;right=p.cur.oo.indexOf(q.c);
+      resp=m.pick>=0?q.o[p.cur.oo[m.pick]]:'(sin respuesta)';
+    }
+    const pts=ok?500+Math.round(500*(1-Math.min(t,G.limit)/G.limit)):0;
+    p.score+=pts;p.answers.push({qi:p.cur.qi,ok,pts,resp});p.cur=null;
+    conn.send({t:'r',ok,pts,right,correct,score:p.score});broadcast();
+  }
+}
+async function createGame(quiz){
+  S.msg='Creando partida…';render();
+  for(let i=0;i<5&&!peer;i++){const code=mkCode();
+    try{peer=await openPeer('quizarp-'+code);S.code=code}catch(e){peer=null;if(e.type!=='unavailable-id'){S.msg='No se pudo conectar a internet.';return render()}}}
+  if(!peer){S.msg='Intenta de nuevo.';return render()}
+  G={id:uid(),date:Date.now(),title:quiz.title,limit:quiz.limit,questions:quiz.qs,per:Math.min(quiz.per||quiz.qs.length,quiz.qs.length),status:'lobby',players:new Map()};
+  peer.on('connection',c=>c.on('data',m=>hostHandle(c,m)));
+  S.role='host';S.msg='';location.hash=S.code;broadcast();
+}
+const setStatus=s=>{G.status=s;broadcast()};
+
+// ===== ESTUDIANTE =====
+async function startPlayer(code){
+  S.role='player';S.code=code;S.pid=sessionStorage.getItem('pid_'+code);S.msg='';render();
+  try{peer=await openPeer()}catch(e){S.msg='No se pudo conectar a internet.';return render()}
+  peer.on('error',e=>{S.msg=e.type==='peer-unavailable'?'No existe una partida con ese código (o el profesor cerró la página).':'Error de conexión.';S.ready=false;render()});
+  const conn=peer.connect('quizarp-'+code,{reliable:true});S.conn=conn;
+  conn.on('open',()=>{S.ready=true;S.msg='';if(S.pid)conn.send({t:'join',pid:S.pid});render()});
+  conn.on('close',()=>{S.ready=false;S.msg='Se perdió la conexión con el profesor.';render()});
+  conn.on('data',playerHandle);
+}
+function playerHandle(m){
+  if(m.t==='err'){S.msg=m.msg;return render()}
+  if(m.t==='joined'){S.pid=m.pid;S.me=m.me;S.title=m.title;S.msg='';sessionStorage.setItem('pid_'+S.code,m.pid);if(m.status==='playing')S.conn.send({t:'q'});return render()}
+  if(m.t==='status'){const prev=S.st&&S.st.status;S.st=m;if(!S.me)return;
+    if(m.status==='playing'&&prev!=='playing'){S.fb=null;S.conn.send({t:'q'})}else if(m.status!=='playing'||!S.q)render();return}
+  if(m.t==='q'){S.q=m;S.fb=null;return render()}
+  if(m.t==='r'){S.fb={...m,pick:S.pick};render();setTimeout(()=>S.conn.send({t:'q'}),m.ok===null||!m.ok?2200:1600)}
+}
+function answer(pick,text){if(S.fb||!S.q||S.q.done)return;clearInterval(timer);S.pick=pick;S.fb={pending:true,pick};render();S.conn.send({t:'a',pick,text})}
+const joinGame=()=>{if(!S.name.trim()){S.msg='Escribe tu nombre.';return render()}S.conn.send({t:'join',name:S.name,avatar:S.av})};
+
+// ===== Vistas =====
+const players=()=>(S.st?.players||[]).map(p=>`<span class="pl">${esc(p.avatar)} ${esc(p.name)}</span>`).join('')||'<span class="mut">Esperando estudiantes…</span>';
+const board=(list=S.st?.players,total=S.st?.total)=>(list||[]).map((p,i)=>`<div class="lb"><span class="big">${i+1}</span><span style="font-size:1.7rem">${esc(p.avatar)}</span><span class="n">${esc(p.name)}<br><small class="mut">${p.done??p.answers?.length}/${p.of??total} respondidas</small></span><b>${p.score}</b></div>`).join('')||'<p class="mut c">Aún no hay estudiantes.</p>';
+function podium(list){
+  const t=(list||[]).slice(0,3);if(!t.length)return'';
+  const order=[1,0,2].filter(i=>t[i]),hs=[120,170,90],medal=['🥇','🥈','🥉'];
+  return`<div class="podium">${order.map(i=>`<div><div style="font-size:2.2rem">${esc(t[i].avatar)}</div><b>${esc(t[i].name)}</b><div class="mut">${t[i].score} pts</div><div class="blk" style="height:${hs[i]}px">${medal[i]}</div></div>`).join('')}</div>`;
+}
+const logo=sub=>`<div class="logo">Quizarp${sub?`<small>${sub}</small>`:''}</div>`;
+const newQ=type=>type==='tf'?{type,q:'',o:['Verdadero','Falso'],c:0}:type==='open'?{type,q:'',a:''}:{type:'mc',q:'',o:['','','',''],c:0};
+
+// ===== Importar preguntas (Excel / Word) =====
+function buildQ(lab,tipo,q,opts,corr,warns){
+  q=String(q||'').trim();if(!q)return null;
+  opts=opts.map(x=>String(x||'').trim()).filter(Boolean);
+  const t=norm(tipo),c=String(corr||'').trim(),nc=norm(c);
+  let type=/abier/.test(t)?'open':/verdadero|falso|^vf$|^tf$/.test(t)?'tf':/multiple|opcion|seleccion/.test(t)?'mc':'';
+  if(!type)type=opts.length>=2?(opts.length===2&&opts.every(o=>/^(verdadero|falso)$/.test(norm(o)))?'tf':'mc'):/^(verdadero|falso|v|f)$/.test(nc)?'tf':'open';
+  if(type==='tf'){
+    if(!/^(v|f|verdadero|falso|true|false)$/.test(nc))warns.push(lab+': no se entendió si es Verdadero o Falso (quedó Verdadero).');
+    return{type,q,o:['Verdadero','Falso'],c:/^(f|falso|false)$/.test(nc)?1:0};
+  }
+  if(type==='open')return{type,q,a:c.split(/[;|]/).map(s=>s.trim()).filter(Boolean).join(', ')};
+  let ci=-1;
+  if(/^[a-d]$/.test(nc))ci='abcd'.indexOf(nc);else if(/^[1-4]$/.test(nc))ci=+nc-1;else if(nc)ci=opts.findIndex(o=>norm(o)===nc);
+  if(opts.length<4){warns.push(lab+': tenía menos de 4 opciones, se completó.');const pad=['Ninguna de las anteriores','Todas las anteriores'];let k=0;while(opts.length<4)opts.push(pad[k++]||'—')}
+  if(opts.length>4){warns.push(lab+': tenía más de 4 opciones, se usaron las 4 primeras.');opts=opts.slice(0,4)}
+  if(ci<0||ci>3){warns.push(lab+': no se encontró la respuesta correcta (quedó la opción A).');ci=0}
+  return{type:'mc',q,o:opts,c:ci};
+}
+function parseRows(rows){
+  const qs=[],warns=[];
+  rows=rows.map(r=>r.map(c=>String(c??'').trim()));
+  const hi=rows.findIndex(r=>r.some(c=>/pregunta/.test(norm(c))));
+  let ix={t:-1,q:0,o:[1,2,3,4],c:5};
+  if(hi>=0){
+    ix={t:-1,q:-1,o:[-1,-1,-1,-1],c:-1};
+    rows[hi].forEach((h,i)=>{const n=norm(h);
+      if(/^tipo/.test(n))ix.t=i;
+      else if(/pregunta/.test(n))ix.q=i;
+      else if(/correcta|^respuesta$|^rta$|^clave$/.test(n))ix.c=i;
+      else{const m=n.match(/^(?:opcion |opc )?([a-d1-4])$/);if(m)ix.o['abcd1234'.indexOf(m[1])%4]=i}});
+  }
+  const start=hi>=0?hi+1:0;
+  rows.slice(start).forEach((r,k)=>{
+    if(!r.some(Boolean))return;
+    const g=i=>i>=0?r[i]||'':'';
+    const x=buildQ('Fila '+(start+k+1),g(ix.t),g(ix.q),ix.o.map(g),g(ix.c),warns);
+    if(x)qs.push(x);
+  });
+  return{qs,warns};
+}
+function parseText(lines){
+  const qs=[],warns=[];let cur=null;
+  const push=()=>{if(cur){const r=buildQ('Pregunta '+(qs.length+1),'',cur.q,cur.o,cur.c,warns);if(r)qs.push(r)}cur=null};
+  for(const raw of lines){
+    let l=String(raw).trim();if(!l)continue;let m;
+    if(m=l.match(/^(?:respuesta correcta|respuesta|resp|rta|correcta|clave)\s*[:\-]\s*(.+)$/i)){if(cur)cur.c=m[1];continue}
+    if(m=l.match(/^(\*?)\s*\(?([A-Da-d])[\).:\-]\s+(.+)$/)){if(cur){cur.o.push(m[3].trim());if(m[1])cur.c=m[2]}continue}
+    l=l.replace(/^\s*(?:\d+|[Pp]regunta\s*\d*)\s*[\).:\-]\s*/,'');
+    push();cur={q:l,o:[],c:''};
+    const im=l.match(/^(.*?)\s+(?:respuesta correcta|respuesta|rta)\s*[:\-]\s*(.+)$/i);if(im){cur.q=im[1];cur.c=im[2]}
+  }
+  push();return{qs,warns};
+}
+async function importFile(f){
+  if(!f)return;
+  const ext=f.name.split('.').pop().toLowerCase();let res;
+  try{
+    if(['xlsx','xls','csv'].includes(ext)){
+      if(typeof XLSX==='undefined')throw 0;
+      const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
+      res=parseRows(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:false,defval:''}));
+    }else if(ext==='docx'){
+      if(typeof mammoth==='undefined')throw 0;
+      const html=(await mammoth.convertToHtml({arrayBuffer:await f.arrayBuffer()})).value;
+      const doc=new DOMParser().parseFromString(html,'text/html'),tr=[...doc.querySelectorAll('tr')];
+      res=tr.length?parseRows(tr.map(r=>[...r.children].map(c=>c.textContent))):parseText([...doc.body.querySelectorAll('p,li')].map(p=>p.textContent));
+    }else if(ext==='txt'){res=parseText((await f.text()).split(/\r?\n/))}
+    else{S.imp='<p style="color:var(--no)">Usa un archivo .xlsx, .csv, .docx o .txt</p>';return render()}
+  }catch(err){S.imp='<p style="color:var(--no)">No pude leer ese archivo. Revisa tu internet o prueba con la plantilla de Excel.</p>';return render()}
+  if(!res.qs.length){S.imp='<p style="color:var(--no)">No encontré preguntas en el archivo. Mira el formato de ejemplo o descarga la plantilla.</p>';return render()}
+  S.pending={name:f.name.replace(/\.[^.]+$/,''),qs:res.qs,warns:res.warns};S.imp='';
+  if(res.qs.length<5)return applyImport(res.qs.length);
+  render();
+  setTimeout(()=>{const b=$.querySelector('#impbox');if(b)b.scrollIntoView({block:'center',behavior:'smooth'})},50);
+}
+function applyImport(n){
+  const pd=S.pending,ed=S.ed;if(!pd)return;
+  let qs=pd.qs;
+  if(n<qs.length){qs=[...qs];for(let i=qs.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[qs[i],qs[j]]=[qs[j],qs[i]]}qs=qs.slice(0,n)}
+  if(ed.qs.every(x=>!x.q.trim()))ed.qs=[];
+  ed.qs.push(...qs);S.open=-1;if(!ed.title.trim())ed.title=pd.name;
+  S.imp='<p style="color:var(--ok)">✅ Se cargaron '+qs.length+' de '+pd.qs.length+' preguntas'+(n<pd.qs.length?', elegidas al azar':'')+'.</p>'+(pd.warns.length?'<small style="color:var(--no)">⚠ '+pd.warns.slice(0,6).map(esc).join('<br>⚠ ')+(pd.warns.length>6?'<br>…':'')+'</small>':'');
+  S.pending=null;render();
+}
+const pendingHTML=()=>{const pd=S.pending;if(!pd)return'';const n=pd.qs.length;
+  return`<div class="q" id="impbox" style="border:2px solid var(--pri)"><b>📂 Tu archivo tiene ${n} preguntas</b>
+  <p class="mut" style="margin:4px 0 10px"><small>¿Cuántas quieres cargar? Se eligen <b>al azar</b>, no en orden.</small></p>
+  <div class="row" style="gap:8px">${[10,20,30,40,50,75].filter(v=>v<n).map(v=>`<button class="sm fit" data-imp="${v}">${v}</button>`).join('')}<button class="sm fit sec" data-imp="${n}">Todas (${n})</button></div>
+  <div class="row" style="margin-top:8px"><span class="fit mut">Otro número</span><input type="number" id="impn" min="1" max="${n}" placeholder="ej. 35" style="max-width:110px"><button class="sm fit" id="impgo">Cargar</button><button class="red sm fit" id="impno">Cancelar</button></div></div>`;
+};
+function template(){
+  if(typeof XLSX==='undefined')return alert('No se pudo cargar el lector de Excel. Revisa tu internet.');
+  const rows=[['Tipo','Pregunta','Opción A','Opción B','Opción C','Opción D','Respuesta correcta'],
+    ['Opción múltiple','¿Cuál es la capital de Francia?','Madrid','París','Roma','Berlín','B'],
+    ['Verdadero/Falso','El Sol es una estrella.','','','','','Verdadero'],
+    ['Abierta','¿En qué continente está Colombia?','','','','','América, Sudamérica, América del Sur']];
+  const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=[{wch:18},{wch:42},{wch:16},{wch:16},{wch:16},{wch:16},{wch:36}];
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Preguntas');XLSX.writeFile(wb,'plantilla-quizarp.xlsx');
+}
+
+// ===== Excel de resultados =====
+function excel(e){
+  if(typeof XLSX==='undefined')return csv(e);
+  const ps=[...e.players].sort((a,b)=>b.score-a.score);
+  const B={style:'thin',color:{rgb:'FFBFBFBF'}},bd={top:B,bottom:B,left:B,right:B};
+  const fill=c=>({patternType:'solid',fgColor:{rgb:'FF'+c}});
+  const C=(v,s)=>({v,t:typeof v==='number'?'n':'s',s:{border:bd,alignment:{vertical:'center',wrapText:true},font:{sz:10},...s}});
+  const H={fill:fill('5B2C9F'),font:{bold:true,color:{rgb:'FFFFFFFF'},sz:10},alignment:{horizontal:'center',vertical:'center',wrapText:true}};
+  const ctr={alignment:{horizontal:'center',vertical:'center',wrapText:true}};
+  const MARK={true:['4CAF50','✓'],false:['E53935','✗'],null:['FFC107','•']};
+  const pct=(c,n)=>n?Math.round(100*c/n):null,fp=v=>v===null?'-':v+'%';
+  // preguntas que alguien contestó (todas si nadie contestó)
+  let qi=e.questions.map((_,i)=>i).filter(i=>ps.some(p=>p.answers.some(a=>a.qi===i)));
+  if(!qi.length)qi=e.questions.map((_,i)=>i);
+  const tot=ps.reduce((t,p)=>{p.answers.forEach(a=>{if(a.ok!==null){t.n++;if(a.ok)t.c++}});return t},{c:0,n:0});
+  const NC=6+qi.length*2,rows=[],merges=[];
+  // fila 0: título
+  rows.push([C(e.title+'   ·   Promedio de aciertos: '+fp(pct(tot.c,tot.n))+'   ·   '+new Date(e.date).toLocaleDateString(),{...H,fill:fill('3F1D74'),font:{bold:true,color:{rgb:'FFFFFFFF'},sz:13},alignment:{horizontal:'left',vertical:'center'}}),...Array(NC-1).fill(C('',{fill:fill('3F1D74')}))]);
+  merges.push({s:{r:0,c:0},e:{r:0,c:NC-1}});
+  // fila 1: encabezados
+  const hd=['N°','Estudiante','Puntaje','✓ Correctas','✗ Incorrectas','% aciertos'].map(t=>C(t,H));
+  qi.forEach((i,k)=>{hd.push(C((k+1)+'. '+e.questions[i].q,H),C('',H));merges.push({s:{r:1,c:6+k*2},e:{r:1,c:7+k*2}})});
+  rows.push(hd);
+  // fila 2: respuesta correcta
+  const key=[C('Respuesta correcta',{font:{bold:true,sz:10,italic:true},fill:fill('E8F5E9')}),...Array(5).fill(C('',{fill:fill('E8F5E9')}))];
+  merges.push({s:{r:2,c:0},e:{r:2,c:5}});
+  qi.forEach((i,k)=>{key.push(C(e.questions[i].correct||'(abierta, sin respuesta fija)',{fill:fill('E8F5E9'),font:{sz:9,italic:true}}),C('',{fill:fill('E8F5E9')}));merges.push({s:{r:2,c:6+k*2},e:{r:2,c:7+k*2}})});
+  rows.push(key);
+  // estudiantes
+  ps.forEach((p,n)=>{
+    const c=p.answers.filter(a=>a.ok===true).length,w=p.answers.filter(a=>a.ok===false).length;
+    const r=[C(n+1,ctr),C(p.name,{font:{bold:true,sz:10}}),C(p.score,ctr),C(c,ctr),C(w,ctr),C(fp(pct(c,c+w)),ctr)];
+    qi.forEach(i=>{const a=p.answers.find(x=>x.qi===i);
+      if(!a)r.push(C('',{fill:fill('F2F2F2')}),C('',{fill:fill('F2F2F2')}));
+      else{const m=MARK[a.ok];r.push(C(a.resp,{font:{sz:9}}),C(m[1],{fill:fill(m[0]),font:{bold:true,color:{rgb:'FFFFFFFF'},sz:11},...ctr}))}});
+    rows.push(r);
+  });
+  // pie: % de aciertos por pregunta
+  const ft=[C('% de aciertos por pregunta',{font:{bold:true,sz:10},fill:fill('EDE7F6')}),...Array(5).fill(C('',{fill:fill('EDE7F6')}))];
+  merges.push({s:{r:rows.length,c:0},e:{r:rows.length,c:5}});
+  qi.forEach((i,k)=>{const as=ps.flatMap(p=>p.answers.filter(a=>a.qi===i&&a.ok!==null));
+    ft.push(C('',{fill:fill('EDE7F6')}),C(fp(pct(as.filter(a=>a.ok).length,as.length)),{fill:fill('EDE7F6'),font:{bold:true,sz:9},...ctr}))});
+  rows.push(ft);
+  const ws=XLSX.utils.aoa_to_sheet(rows);
+  ws['!merges']=merges;
+  ws['!cols']=[{wch:5},{wch:26},{wch:9},{wch:11},{wch:12},{wch:10},...qi.flatMap(()=>[{wch:30},{wch:5}])];
+  ws['!rows']=[{hpt:26},{hpt:78},{hpt:34}];
+  // hojas de apoyo
+  const st=a=>a.ok===null?'Sin calificar':a.ok?'Correcta':'Incorrecta';
+  const det=[['Estudiante','N°','Pregunta','Tipo','Respuesta del estudiante','Respuesta correcta','Resultado','Puntos'].map(t=>C(t,H))];
+  ps.forEach(p=>p.answers.forEach((a,i)=>{const q=e.questions[a.qi];det.push([p.name,i+1,q.q,TYPES[q.type],a.resp,q.correct||'',st(a),a.pts].map(v=>C(v,{})))}));
+  const pq=[['Pregunta','Tipo','Respuesta correcta','Veces contestada','Aciertos','% de aciertos'].map(t=>C(t,H))];
+  e.questions.forEach((q,k)=>{const as=ps.flatMap(p=>p.answers.filter(a=>a.qi===k));if(!as.length)return;
+    const g=as.filter(a=>a.ok!==null),c=g.filter(a=>a.ok).length;
+    pq.push([q.q,TYPES[q.type],q.correct||'',as.length,c,fp(pct(c,g.length))].map(v=>C(v,{})))});
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Resultados');
+  [['Detalle',det,[24,5,44,18,30,28,14,8]],['Por pregunta',pq,[48,18,28,16,10,14]]].forEach(([n,r,w])=>{
+    const s=XLSX.utils.aoa_to_sheet(r);s['!cols']=w.map(x=>({wch:x}));XLSX.utils.book_append_sheet(wb,s,n)});
+  XLSX.writeFile(wb,'Quizarp - '+e.title.replace(/[\\\/:*?"<>|]+/g,'')+'.xlsx');
+}
+
+function cleanQs(ed){
+  const out=[];
+  for(const x of ed.qs){
+    if(!x.q.trim())continue;
+    if(x.type==='mc'){if(!x.o.every(o=>o.trim()))return null;out.push({type:'mc',q:x.q.trim(),o:x.o.map(o=>o.trim()),c:x.c})}
+    else if(x.type==='tf')out.push({type:'tf',q:x.q.trim(),o:['Verdadero','Falso'],c:x.c});
+    else out.push({type:'open',q:x.q.trim(),a:String(x.a||'').split(',').map(s=>s.trim()).filter(Boolean)});
+  }
+  return out.length?out:null;
+}
+function saveQuiz(play){
+  const ed=S.ed,qs=cleanQs(ed);
+  if(!qs){S.msg='Completa al menos una pregunta. En opción múltiple las 4 opciones son obligatorias.';return render()}
+  const quiz={id:ed.id||uid(),title:ed.title.trim()||'Mi quiz',limit:+ed.limit,per:Math.min(+ed.per||qs.length,qs.length),qs},l=quizzes(),i=l.findIndex(x=>x.id===quiz.id);
+  if(i>=0)l[i]=quiz;else l.unshift(quiz);LS.set('qz_quizzes',l);S.msg='';
+  if(play)createGame(quiz);else{S.view='dash';render()}
+}
+const editorFull=(x,i)=>`<div class="q"><div class="row"><b class="fit">Pregunta ${i+1}</b><select data-t="${i}">${Object.entries(TYPES).map(([k,v])=>`<option value="${k}" ${x.type===k?'selected':''}>${v}</option>`).join('')}</select>${S.ed.qs.length>1?`<button class="red sm fit" data-del="${i}">✕</button>`:''}</div>
+<input data-q="${i}" placeholder="Escribe la pregunta" value="${esc(x.q)}">
+${x.type==='open'?`<input data-a="${i}" placeholder="Respuestas aceptadas, separadas por coma (opcional)" value="${esc(x.a)}"><small class="mut">Si lo dejas vacío, la pregunta no se califica y solo guardas lo que escriben.</small>`
+:x.o.map((o,j)=>`<div class="row" style="flex-wrap:nowrap"><input type="radio" name="r${i}" data-c="${i}:${j}" ${x.c===j?'checked':''} style="flex:0 0 22px">${x.type==='tf'?`<b>${o}</b>`:`<input data-o="${i}:${j}" placeholder="Opción ${j+1}${x.c===j?' (correcta)':''}" value="${esc(o)}">`}</div>`).join('')}</div>`;
+
+const incomplete=x=>!x.q.trim()||(x.type==='mc'&&!x.o.every(o=>String(o).trim()));
+const editorQ=(x,i)=>{
+  const big=S.ed.qs.length>12;
+  if(!big)return editorFull(x,i);
+  if(S.open===i)return editorFull(x,i)+'<div class="c" style="margin:-4px 0 10px"><button class="sec sm" data-ex="-1">▲ Cerrar esta pregunta</button></div>';
+  return`<div class="lb"><span class="tag fit">${TYPES[x.type]}</span><span class="n">${i+1}. ${x.q.trim()?esc(x.q.length>70?x.q.slice(0,70)+'…':x.q):'<i class="mut">(sin escribir)</i>'}${incomplete(x)?' ⚠':''}</span><button class="sec sm fit" data-ex="${i}">Editar</button><button class="red sm fit" data-del="${i}">✕</button></div>`;
+};
+function render(){
+  clearInterval(timer);
+  const m=S.msg?`<p class="c" style="color:var(--no)">${esc(S.msg)}</p>`:'';
+  if(!S.role){
+    if(S.view==='edit'){
+      const ed=S.ed,cur=Math.min(+ed.per||0,ed.qs.length);
+      $.innerHTML=`${logo()}<div class="card"><h2>${ed.id?'Editar quiz':'Nuevo quiz'} <small class="mut">· ${ed.qs.length} preguntas</small></h2>${pendingHTML()}<input id="t" placeholder="Título del quiz" value="${esc(ed.title)}">
+      <div class="row"><span class="fit mut">Tiempo por pregunta</span><select id="lim">${[10,20,30,60,120].map(v=>`<option value="${v}" ${+ed.limit===v?'selected':''}>${v} s</option>`).join('')}</select></div>
+      <div class="q" id="perbox" style="border:2px solid var(--pri)"><b>🎲 Preguntas al azar para cada estudiante</b>
+      <p class="mut" style="margin:4px 0 10px"><small>Tienes ${ed.qs.length} preguntas. Elige cuántas contestará cada estudiante: a cada uno le tocan distintas, al azar y en distinto orden.</small></p>
+      <div class="row" style="gap:8px">${[10,20,30,40,50,75].filter(v=>v<ed.qs.length).map(v=>`<button class="sm fit ${cur===v?'':'sec'}" data-per="${v}">${v}</button>`).join('')}<button class="sm fit ${cur===0?'':'sec'}" data-per="0">Todas (${ed.qs.length})</button></div>
+      <div class="row" style="margin-top:8px"><span class="fit mut">Otro número</span><input type="number" id="per" min="0" max="${ed.qs.length}" value="${cur||''}" placeholder="0 = todas" style="max-width:120px"></div>
+      <p class="mut" style="margin:4px 0 0"><small>${cur?`Cada estudiante contestará <b>${cur}</b> de ${ed.qs.length} preguntas.`:`Cada estudiante contestará las ${ed.qs.length} preguntas (en distinto orden).`}</small></p></div>
+      <div class="q" style="border-color:var(--pri)"><b>📂 Importar preguntas desde Word o Excel</b>
+      <input type="file" id="file" accept=".xlsx,.xls,.csv,.docx,.txt">
+      <div class="row"><button class="sec sm fit" id="tpl">⬇ Plantilla de Excel</button></div>
+      <small class="mut">Excel: columnas Tipo, Pregunta, Opción A, B, C, D y Respuesta correcta (A, B, C o D). Word: cada pregunta en una línea, sus opciones con A) B) C) D) y una línea “Respuesta: B”.</small>${S.imp||''}</div>
+      ${ed.qs.map(editorQ).join('')}
+      <div class="row"><button class="sec" id="addq">+ Agregar pregunta</button></div>${m}
+      <div class="row" style="margin-top:12px"><button class="sec" id="back">Cancelar</button><button class="sec" id="sv">💾 Guardar</button><button id="pl">▶ Guardar y jugar</button></div></div>`;
+      $.querySelector('#t').oninput=e=>ed.title=e.target.value;
+      $.querySelector('#lim').onchange=e=>ed.limit=+e.target.value;
+      $.querySelector('#per').onchange=e=>{ed.per=Math.max(0,Math.min(ed.qs.length,Math.floor(+e.target.value)||0));render()};
+      $.querySelectorAll('[data-per]').forEach(b=>b.onclick=()=>{ed.per=+b.dataset.per;render()});
+      $.querySelectorAll('[data-imp]').forEach(b=>b.onclick=()=>applyImport(+b.dataset.imp));
+      const ig=$.querySelector('#impgo');if(ig){
+        ig.onclick=()=>{const n=Math.floor(+$.querySelector('#impn').value);if(n>=1&&n<=S.pending.qs.length)applyImport(n);else alert('Escribe un número entre 1 y '+S.pending.qs.length)};
+        $.querySelector('#impno').onclick=()=>{S.pending=null;render()}}
+      $.querySelector('#file').onchange=e=>importFile(e.target.files[0]);$.querySelector('#tpl').onclick=template;
+      $.querySelectorAll('[data-q]').forEach(e=>e.oninput=()=>ed.qs[+e.dataset.q].q=e.value);
+      $.querySelectorAll('[data-a]').forEach(e=>e.oninput=()=>ed.qs[+e.dataset.a].a=e.value);
+      $.querySelectorAll('[data-o]').forEach(e=>e.oninput=()=>{const[a,b]=e.dataset.o.split(':');ed.qs[a].o[b]=e.value});
+      $.querySelectorAll('[data-c]').forEach(e=>e.onchange=()=>{const[a,b]=e.dataset.c.split(':');ed.qs[a].c=+b;render()});
+      $.querySelectorAll('[data-t]').forEach(e=>e.onchange=()=>{const i=+e.dataset.t,q=ed.qs[i].q;ed.qs[i]={...newQ(e.value),q};render()});
+      $.querySelectorAll('[data-del]').forEach(e=>e.onclick=()=>{ed.qs.splice(+e.dataset.del,1);S.open=-1;render()});
+      $.querySelectorAll('[data-ex]').forEach(e=>e.onclick=()=>{S.open=+e.dataset.ex;render();if(S.open>=0)setTimeout(()=>$.querySelectorAll('.q')[0]?.scrollIntoView({block:'center'}),0)});
+      $.querySelector('#addq').onclick=()=>{ed.qs.push(newQ('mc'));S.open=ed.qs.length-1;render();window.scrollTo(0,document.body.scrollHeight)};
+      $.querySelector('#back').onclick=()=>{S.view='dash';S.msg='';render()};
+      $.querySelector('#sv').onclick=()=>saveQuiz(false);$.querySelector('#pl').onclick=()=>saveQuiz(true);return;
+    }
+    if(S.view==='hist'){
+      const e=hist().find(x=>x.id===S.hid);if(!e){S.view='dash';return render()}
+      $.innerHTML=`${logo()}<div class="card"><h2>${esc(e.title)}</h2><p class="mut">${new Date(e.date).toLocaleString()} · ${e.players.length} estudiantes</p>
+      <div class="row"><button class="sec" id="back">← Volver</button><button id="csv">⬇ Descargar Excel</button></div></div>
+      ${podium(e.players.slice().sort((a,b)=>b.score-a.score))}
+      ${[...e.players].sort((a,b)=>b.score-a.score).map(p=>`<div class="card"><div class="row" style="flex-wrap:nowrap"><span style="font-size:2rem" class="fit">${esc(p.avatar)}</span><b>${esc(p.name)}</b><b class="fit">${p.score} pts</b></div>
+      <div class="scroll"><table><tr><th>Pregunta</th><th>Respuesta</th><th></th></tr>${p.answers.map(a=>`<tr><td>${esc(e.questions[a.qi].q)}</td><td>${esc(a.resp)}</td><td>${a.ok===null?'📝':a.ok?'✅':'❌'}</td></tr>`).join('')}</table></div></div>`).join('')}`;
+      $.querySelector('#back').onclick=()=>{S.view='dash';render()};$.querySelector('#csv').onclick=()=>excel(e);return;
+    }
+    if(S.view==='dash'){
+      const qz=quizzes(),h=hist();
+      $.innerHTML=`${logo('Panel del profesor')}${m}<div class="card"><div class="row"><h2>Mis quizzes</h2><button class="fit" id="nw">+ Nuevo quiz</button></div>
+      ${qz.map(x=>`<div class="lb"><span class="n"><b>${esc(x.title)}</b><br><small class="mut">${x.qs.length} preguntas${x.per&&x.per<x.qs.length?` (${x.per} por estudiante)`:''} · ${x.limit}s</small></span><button class="sm" data-play="${x.id}">▶ Jugar</button><button class="sec sm" data-edit="${x.id}">Editar</button><button class="red sm" data-rm="${x.id}">✕</button></div>`).join('')||'<p class="mut">Aún no tienes quizzes guardados.</p>'}</div>
+      <div class="card"><h2>Historial de partidas</h2>${h.map(x=>`<div class="lb"><span class="n"><b>${esc(x.title)}</b><br><small class="mut">${new Date(x.date).toLocaleString()} · ${x.players.length} estudiantes</small></span><button class="sm" data-h="${x.id}">Ver</button><button class="red sm" data-hrm="${x.id}">✕</button></div>`).join('')||'<p class="mut">Cuando juegues una partida, sus resultados se guardan aquí.</p>'}
+      <p class="mut"><small>Se guarda en este navegador y este equipo. Descarga el Excel de cada partida para tener una copia.</small></p></div>
+      <p class="c"><button class="sec" id="home">← Inicio</button></p>`;
+      $.querySelector('#nw').onclick=()=>{S.ed={id:null,title:'',limit:30,per:0,qs:[newQ('mc')]};S.msg='';S.imp='';S.pending=null;S.open=-1;S.view='edit';render()};
+      $.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const x=quizzes().find(y=>y.id===b.dataset.edit);S.ed={id:x.id,title:x.title,limit:x.limit,per:x.per||0,qs:x.qs.map(q=>({...q,o:q.o?[...q.o]:undefined,a:q.a?q.a.join(', '):''}))};S.msg='';S.imp='';S.pending=null;S.open=-1;S.view='edit';render()});
+      $.querySelectorAll('[data-play]').forEach(b=>b.onclick=()=>createGame(quizzes().find(y=>y.id===b.dataset.play)));
+      $.querySelectorAll('[data-rm]').forEach(b=>b.onclick=()=>{if(confirm('¿Eliminar este quiz?')){LS.set('qz_quizzes',quizzes().filter(y=>y.id!==b.dataset.rm));render()}});
+      $.querySelectorAll('[data-h]').forEach(b=>b.onclick=()=>{S.hid=b.dataset.h;S.view='hist';render()});
+      $.querySelectorAll('[data-hrm]').forEach(b=>b.onclick=()=>{if(confirm('¿Eliminar estos resultados?')){LS.set('qz_hist',hist().filter(y=>y.id!==b.dataset.hrm));render()}});
+      $.querySelector('#home').onclick=()=>{S.view='home';render()};return;
+    }
+    $.innerHTML=`${logo('Preguntas en vivo para tu clase')}
+    <div class="card"><h2>🎒 Soy estudiante</h2><input id="cd" placeholder="Código de la partida" maxlength="4" style="text-transform:uppercase;text-align:center;font-size:1.4rem"><button id="j" style="width:100%;margin-top:8px">Entrar</button></div>
+    <div class="card"><h2>🧑‍🏫 Soy profesor</h2><button id="n" style="width:100%">Ir a mi panel</button></div>`;
+    $.querySelector('#j').onclick=()=>{const c=$.querySelector('#cd').value.trim().toUpperCase();if(c){location.hash=c;startPlayer(c)}};
+    $.querySelector('#n').onclick=()=>{S.view='dash';render()};return;
+  }
+  const st=S.st;
+  if(S.role==='host'){
+    const warn=location.protocol==='file:'?'<p style="color:var(--no)">⚠ Abriste el archivo desde tu PC: este enlace no sirve para los estudiantes. Ábrelo desde tu dirección de GitHub Pages.</p>':'';
+    $.innerHTML=`${logo()}<div class="card c"><h3>${esc(st.title)}</h3><p class="mut">Comparte este enlace con tus estudiantes</p><div class="url">${esc(link(S.code))}</div>
+    <p class="mut">o el código</p><div class="code">${S.code}</div>${warn}
+    <button class="sec" id="cp">Copiar enlace</button><p class="mut"><small>No cierres ni recargues esta pestaña durante la clase.</small></p></div>
+    <div class="card"><div class="row"><b>Estado: ${{lobby:'Sala de espera',playing:'En juego',ended:'Terminado'}[st.status]}</b>
+    ${st.status==='lobby'?'<button id="st">▶ Iniciar</button>':st.status==='playing'?'<button id="en">■ Terminar</button>':''}</div>${st.status==='playing'&&st.players.length&&st.players.every(p=>p.done>=p.of)?'<p class="c" style="color:var(--ok)">✅ Todos terminaron. Pulsa Terminar para ver el podio y bajar el Excel.</p>':''}</div>
+    ${st.status==='ended'?`<div class="card">${podium(st.players)}${st.players.length?'<p class="c mut">✅ Resultados guardados. Se descargó tu Excel.</p><button id="xl" style="width:100%">⬇ Descargar Excel otra vez</button>':'<p class="c mut">Nadie participó en esta partida.</p>'}</div>`:''}
+    <div class="card"><h2>${st.status==='lobby'?`Estudiantes (${st.players.length})`:'Ranking'}</h2>${st.status==='lobby'?players():board()}</div>
+    <p class="c"><button class="sec" id="new">Ir a mi panel</button></p>`;
+    $.querySelector('#cp').onclick=e=>{navigator.clipboard?.writeText(link(S.code));e.target.textContent='¡Copiado!'};
+    const a=$.querySelector('#st');if(a)a.onclick=()=>setStatus('playing');
+    const b=$.querySelector('#en');if(b)b.onclick=()=>{if(confirm('¿Terminar la partida para todos?')){setStatus('ended');const e=hist().find(x=>x.id===G.id);if(e)excel(e)}};
+    const xl=$.querySelector('#xl');if(xl)xl.onclick=()=>{const e=hist().find(x=>x.id===G.id);if(e)excel(e)};
+    $.querySelector('#new').onclick=()=>{if(st.status==='ended'||confirm('Se cerrará la partida actual. ¿Continuar?')){history.replaceState(null,'',location.pathname);S.view='dash';location.reload()}};return;
+  }
+  if(!S.me){
+    $.innerHTML=`${logo()}<div class="card">${S.ready?`<h2>¿Cómo te llamas?</h2><input id="nm" placeholder="Tu nombre" maxlength="20" value="${esc(S.name)}">
+    <p class="mut">Elige tu avatar</p><div class="avs">${AV.map(a=>`<button data-a="${a}" class="${a===S.av?'on':''}">${a}</button>`).join('')}</div>
+    <button id="j" style="width:100%;margin-top:14px">¡Unirme!</button>`:`<p class="c mut">${S.msg?'':'Conectando con el profesor…'}</p>`}${m}</div>`;
+    const nm=$.querySelector('#nm');if(nm)nm.oninput=e=>S.name=e.target.value;
+    $.querySelectorAll('[data-a]').forEach(b=>b.onclick=()=>{S.av=b.dataset.a;render()});
+    const j=$.querySelector('#j');if(j)j.onclick=joinGame;return;
+  }
+  const head=`<div class="card" style="padding:12px 18px"><span class="big">${esc(S.me.avatar)} ${esc(S.me.name)}</span></div>${m}`;
+  if(!st||st.status==='lobby'){$.innerHTML=`${logo()}${head}<div class="card c"><h3>${esc(S.title)}</h3><p class="mut">¡Estás dentro! Espera a que el profesor inicie…</p>${players()}</div>`;return}
+  if(st.status==='ended'||(S.q&&S.q.done)){$.innerHTML=`${logo()}<div class="card c"><h2>${st.status==='ended'?'🏆 Resultados':'✅ ¡Terminaste!'}</h2>${st.status==='ended'?podium(st.players):'<p class="mut">Esperando a los demás…</p>'}</div>${head}<div class="card">${board()}</div>`;return}
+  if(!S.q||S.q.wait){$.innerHTML=`${head}<div class="card c"><p class="mut">Cargando pregunta…</p></div>`;return}
+  const q=S.q,f=S.fb,L='ABCD';
+  let body;
+  if(q.type==='open'){
+    body=f&&!f.pending?'':`<div class="card"><input id="ans" maxlength="200" placeholder="Escribe tu respuesta" ${f?'disabled':''} autocomplete="off"><button id="send" style="width:100%;margin-top:8px" ${f?'disabled':''}>Enviar respuesta</button></div>`;
+  }else body=`<div class="opts ${q.type==='tf'?'two':''}">${q.options.map((o,p)=>`<button class="opt o${q.type==='tf'?(p?0:3):p} ${f&&!f.pending?(p===f.right?'right':'dim'):''}" data-p="${p}" ${f?'disabled':''}>${q.type==='tf'?'':`<b>${L[p]}</b>`}${esc(o)}</button>`).join('')}</div>`;
+  const msg=f&&!f.pending?(f.ok===null?'📝 Respuesta enviada':f.ok?`¡Correcto! +${f.pts}`:(f.pick<0&&q.type!=='open'?'Se acabó el tiempo':'Incorrecto')+(f.correct?`<br><small class="mut">Respuesta: ${esc(f.correct)}</small>`:'')):'';
+  $.innerHTML=`${head}<div class="card c"><div class="row"><span class="tag fit">${TYPES[q.type]}</span><span class="mut" style="text-align:right">Pregunta ${q.k+1} de ${q.total}</span></div><h2>${esc(q.q)}</h2><div class="bar"><i id="bar"></i></div></div>${body}
+  ${msg?`<div class="fb" style="color:var(--${f.ok===false?'no':'ok'})">${msg}</div>`:''}`;
+  $.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>answer(+b.dataset.p));
+  const inp=$.querySelector('#ans'),send=$.querySelector('#send');
+  if(inp&&!f){inp.focus();send.onclick=()=>answer(-1,inp.value);inp.onkeydown=e=>{if(e.key==='Enter')send.click()}}
+  if(!f){const bar=$.querySelector('#bar'),t0=Date.now();timer=setInterval(()=>{const left=1-(Date.now()-t0)/1000/q.limit;bar.style.width=Math.max(0,left*100)+'%';if(left<=0)answer(-1,inp?inp.value:'')},150)}
+}
+const h=location.hash.slice(1).toUpperCase();
+if(h)startPlayer(h);else render();
+</script>
+</body>
+</html>
